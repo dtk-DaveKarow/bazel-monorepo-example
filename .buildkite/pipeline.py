@@ -1,10 +1,22 @@
+import subprocess
 from utils import run, filter_dirs, get_paths, get_package_step, to_json
 
 # By default, do nothing.
 steps = []
 
 # Get a list of directories changed in the most recent commit.
-changed_paths = run(["git", "diff-tree", "--name-only", "HEAD~1..HEAD"])
+# A template-created repository's initial commit has no parent, so return an
+# empty pipeline rather than diffing against the nonexistent HEAD~1.
+has_parent = subprocess.run(
+    ["git", "rev-parse", "--verify", "HEAD~1"],
+    capture_output=True,
+).returncode == 0
+
+changed_paths = (
+    run(["git", "diff-tree", "--name-only", "HEAD~1..HEAD"])
+    if has_parent
+    else []
+)
 changed_dirs = filter_dirs(changed_paths)
 
 # Query the Bazel workspace for a list of all packages (libraries, binaries, etc.).
